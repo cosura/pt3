@@ -48,13 +48,13 @@
 #define DMA_PAGE_SIZE		4096
 #define MAX_DESCS			204		/* 4096 / 20 */
 #if 1
-#define PAGE_BLOCK_COUNT	(17)
-#define PAGE_BLOCK_SIZE		(DMA_PAGE_SIZE * 47)
+#define BLOCK_COUNT			(17)
+#define BLOCK_SIZE			(DMA_PAGE_SIZE * 47)
 #else
-#define PAGE_BLOCK_COUNT	(32)
-#define PAGE_BLOCK_SIZE		(DMA_PAGE_SIZE * 47 * 8)
+#define BLOCK_COUNT			(32)
+#define BLOCK_SIZE			(DMA_PAGE_SIZE * 47 * 8)
 #endif
-#define DMA_TS_BUF_SIZE		(PAGE_BLOCK_SIZE * PAGE_BLOCK_COUNT)
+#define DMA_TS_BUF_SIZE		(BLOCK_SIZE * BLOCK_COUNT)
 #define NOT_SYNC_BYTE		0x74
 
 static __u32
@@ -418,7 +418,7 @@ create_pt3_dma(struct pci_dev *hwdev, PT3_I2C *i2c, int real_index)
 	dma->real_index = real_index;
 	mutex_init(&dma->lock);
 	
-	dma->ts_count = PAGE_BLOCK_COUNT;
+	dma->ts_count = BLOCK_COUNT;
 	dma->ts_info = kzalloc(sizeof(PT3_DMA_PAGE) * dma->ts_count, GFP_KERNEL);
 	if (dma->ts_info == NULL) {
 		PT3_PRINTK(0, KERN_ERR, "fail allocate PT3_DMA_PAGE\n");
@@ -426,13 +426,9 @@ create_pt3_dma(struct pci_dev *hwdev, PT3_I2C *i2c, int real_index)
 	}
 	for (i = 0; i < dma->ts_count; i++) {
 		page = &dma->ts_info[i];
-		page->size = PAGE_BLOCK_SIZE;
+		page->size = BLOCK_SIZE;
 		page->data_pos = 0;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,18,0)
 		page->data = dma_alloc_coherent(&hwdev->dev, page->size, &page->addr, GFP_KERNEL);
-#else
-		page->data = pci_alloc_consistent(hwdev, page->size, &page->addr);
-#endif
 		if (page->data == NULL) {
 			PT3_PRINTK(0, KERN_ERR, "fail allocate consistent. %d\n", i);
 			goto fail;
@@ -450,11 +446,7 @@ create_pt3_dma(struct pci_dev *hwdev, PT3_I2C *i2c, int real_index)
 		page = &dma->desc_info[i];
 		page->size = DMA_PAGE_SIZE;
 		page->data_pos = 0;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,18,0)
 		page->data = dma_alloc_coherent(&hwdev->dev, page->size, &page->addr, GFP_KERNEL);
-#else
-		page->data = pci_alloc_consistent(hwdev, page->size, &page->addr);
-#endif
 		if (page->data == NULL) {
 			PT3_PRINTK(0, KERN_ERR, "fail allocate consistent. %d\n", i);
 			goto fail;
@@ -483,11 +475,7 @@ free_pt3_dma(struct pci_dev *hwdev, PT3_DMA *dma)
 		for (i = 0; i < dma->ts_count; i++) {
 			page = &dma->ts_info[i];
 			if (page->size != 0)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,18,0)
 				dma_free_coherent(&hwdev->dev, page->size, page->data, page->addr);
-#else
-				pci_free_consistent(hwdev, page->size, page->data, page->addr);
-#endif
 		}
 		kfree(dma->ts_info);
 	}
@@ -495,11 +483,7 @@ free_pt3_dma(struct pci_dev *hwdev, PT3_DMA *dma)
 		for (i = 0; i < dma->desc_count; i++) {
 			page = &dma->desc_info[i];
 			if (page->size != 0)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,18,0)
 				dma_free_coherent(&hwdev->dev, page->size, page->data, page->addr);
-#else
-				pci_free_consistent(hwdev, page->size, page->data, page->addr);
-#endif
 		}
 		kfree(dma->desc_info);
 	}

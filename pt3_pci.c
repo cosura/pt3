@@ -860,11 +860,7 @@ static const struct file_operations pt3_fops = {
 	.open		=	pt3_open,
 	.release	=	pt3_release,
 	.read		=	pt3_read,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,12,0)
-	.llseek	= no_llseek,
-#else
-	.llseek = NULL,
-#endif
+	.llseek	=	no_llseek,
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36)
 	.ioctl		=	pt3_ioctl,
 #else
@@ -873,7 +869,7 @@ static const struct file_operations pt3_fops = {
 #endif
 };
 
-static int __devinit
+static int
 pt3_pci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int		rc ;
@@ -923,21 +919,11 @@ pt3_pci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev_conf->hw_addr[1] = pci_ioremap_bar(pdev, 2);
 	if (!dev_conf->hw_addr[1])
 		goto out_err_fpga;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,18,0)
-	rc = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
-#else
-	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
-#endif
-	if (!rc) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,18,0)
-		rc = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
-#else
-		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-#endif
-	}
+
+	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (rc) {
-		PT3_PRINTK(0, KERN_ERR, "DMA MASK ERROR\n");
-		goto out_err_fpga;
+    	PT3_PRINTK(0, KERN_ERR, "DMA MASK ERROR\n");
+    	goto out_err_fpga;
 	}
 
 	if(check_fpga_version(dev_conf)){
@@ -1071,7 +1057,7 @@ out_err_pci:
 	return -EIO;
 }
 
-static void __devexit
+static void 
 pt3_pci_remove_one(struct pci_dev *pdev)
 {
 	__u32		lp;
@@ -1158,11 +1144,7 @@ static int __init
 pt3_pci_init(void)
 {
 	PT3_PRINTK(0, KERN_INFO, "%s", version);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6,4,0)
-	pt3video_class = class_create(THIS_MODULE, DRV_CLASS);
-#else
 	pt3video_class = class_create(DRV_CLASS);
-#endif
 	if (IS_ERR(pt3video_class))
 		return PTR_ERR(pt3video_class);
 	return pci_register_driver(&pt3_driver);
